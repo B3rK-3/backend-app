@@ -1,0 +1,2 @@
+This is a python flask backend server with single endpoint /pushdb method=POST that take in json of {'img': type(base64 string), 'userid': str}
+the image user has taken is send with userid id and processed with clip, rembg, and gemini API (for tags) before its pushed to the database.
