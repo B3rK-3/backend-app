@@ -229,12 +229,12 @@ def register():
     conn = get_conn()
     try:
         with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO users (email, hashed_pass) VALUES (%s, %s) RETURNING id;",
-                    (email, hashedPass),
-                )
-                userID = str(cursor.fetchone()[0])
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (email, hashed_pass) VALUES (%s, %s) RETURNING id;",
+                (email, hashedPass),
+            )
+            userID = str(cursor.fetchone()[0])
 
             # rotate/issue refresh token for user
             refreshToken = getUpdateRefreshToken(userID, cursor)
