@@ -12,3 +12,6 @@ conn =  psycopg2.connect(
         port=os.environ["port"],
     )
 
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM users")
+print(cursor.fetchall())

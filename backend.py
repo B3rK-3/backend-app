@@ -32,7 +32,7 @@ def getJWTPayload(jwtString: str) -> dict:
 
 def validJWT(payload: dict) -> bool:
     """Check if jwt is still valid"""
-    timeNow = datetime.datetime.now(datetime.timezone.utc)
+    timeNow = datetime.datetime.now(datetime.timezone.utc).timestamp()
     if payload["exp"] <= timeNow:
         return False
     else:
