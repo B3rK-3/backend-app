@@ -237,7 +237,7 @@ def register():
                 userID = str(cursor.fetchone()[0])
 
             # rotate/issue refresh token for user
-            refreshToken = getUpdateRefreshToken(userID, conn)
+            refreshToken = getUpdateRefreshToken(userID, cursor)
             # short-lived access JWT
             jwtString = newJWT(userID)
 
