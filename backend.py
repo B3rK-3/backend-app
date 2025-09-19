@@ -8,9 +8,8 @@ from PIL import Image
 from rembg.handle import handle
 import torch
 import clip
-from PIL import Image
 import datetime
-import numpy as np
+from numpy import float32
 import os
 import psycopg2
 from dotenv import load_dotenv
@@ -21,6 +20,7 @@ load_dotenv()
 
 app = Flask(__name__)
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
 model, preprocess = clip.load("ViT-B/32", device=device)
 
 
@@ -155,7 +155,7 @@ def clipImage(bytesObj: bytes):
             dim=-1, keepdim=True
         )  # normalize
     embedding: list = (
-        image_features_normalized.cpu().numpy().flatten().astype(np.float32).tolist()
+        image_features_normalized.cpu().numpy().flatten().astype(float32).tolist()
     )
     return embedding
 
@@ -348,3 +348,5 @@ JOIN garment_embed ge ON ge.garment_id = g.id
 JOIN filtered f ON f.id = g.id
 ORDER BY dist
 LIMIT 20;"""
+if __name__ == "__main__":
+    app.run(debug=True, host="192.168.1.217", port=5000)
