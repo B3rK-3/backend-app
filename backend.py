@@ -178,12 +178,14 @@ def pushdb():
     cursor = conn.cursor()
 
     bytesIn = base64.b64decode(img)
+    print("rembg")
     bytesOut = handle(bytesIn)  # remove bg
 
+    open("req.jpg", "wb").write(bytesOut)
     embedding = clipImage(bytesOut)
 
     features = geminiAPI.generate_tags(
-        bytesIn, garment_type=garment_type, image_format="png"
+        bytesIn, garment_type=garment_type, image_format="jpeg"
     )
     if not validImageFeature(features):
         return jsonify(
@@ -349,4 +351,4 @@ JOIN filtered f ON f.id = g.id
 ORDER BY dist
 LIMIT 20;"""
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
