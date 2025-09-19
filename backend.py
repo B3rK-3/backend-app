@@ -15,6 +15,7 @@ import psycopg2
 from dotenv import load_dotenv
 import geminiAPI
 import hashlib
+from io import BytesIO
 
 load_dotenv()
 
@@ -147,7 +148,7 @@ def clipImage(bytesObj: bytes):
     Returns:
         List[int]: a list of size 512 containing the vector.
     """
-    image = preprocess(Image.open(bytesObj)).unsqueeze(0).to(device)
+    image = preprocess(Image.open(BytesIO(bytes))).unsqueeze(0).to(device)
 
     with torch.no_grad():
         image_features = model.encode_image(image)
