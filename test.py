@@ -114,7 +114,7 @@ LIMIT 5;
                     seen[garment_type].add(image_url)
     return res
 
-userID = "019968be-a7a8-7b18-8474-a2b39f025031"
+userID = "01996955-cdbd-7c57-88e5-0af497f8e790"
 print(
     getGarments(
         {

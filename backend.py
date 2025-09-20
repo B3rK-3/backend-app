@@ -27,71 +27,84 @@ device = "cpu"
 print(device)
 model, preprocess = clip.load("ViT-B/32", device=device)
 
+
 class RETURNS:
     class ERRORS:
         @staticmethod
         def bad_jwt():
             return (
-                jsonify({
-                    "status": "ERROR",
-                    "ERROR": "expired_jwt",
-                    "message": "JWT EXPIRED",
-                }),
+                jsonify(
+                    {
+                        "status": "ERROR",
+                        "ERROR": "expired_jwt",
+                        "message": "JWT EXPIRED",
+                    }
+                ),
                 401,
             )
 
         @staticmethod
         def bad_image():
             return (
-                jsonify({
-                    "status": "ERROR",
-                    "message": "GEMINI RETURNED BAD FEATURES",
-                    "ERROR": "not_clothing",
-                }),
+                jsonify(
+                    {
+                        "status": "ERROR",
+                        "message": "GEMINI RETURNED BAD FEATURES",
+                        "ERROR": "not_clothing",
+                    }
+                ),
                 401,
             )
 
         @staticmethod
         def bad_email():
             return (
-                jsonify({
-                    "status": "ERROR",
-                    "ERROR": "email_exists",
-                    "message": "EMAIL NOT UNIQUE",
-                }),
+                jsonify(
+                    {
+                        "status": "ERROR",
+                        "ERROR": "email_exists",
+                        "message": "EMAIL NOT UNIQUE",
+                    }
+                ),
                 409,
             )
 
         @staticmethod
         def bad_refresh_token():
             return (
-                jsonify({
-                    "status": "ERROR",
-                    "ERROR": "invalid_refresh_token",
-                    "message": "INVALID REFRESH TOKEN",
-                }),
+                jsonify(
+                    {
+                        "status": "ERROR",
+                        "ERROR": "invalid_refresh_token",
+                        "message": "INVALID REFRESH TOKEN",
+                    }
+                ),
                 401,
             )
 
         @staticmethod
         def bad_login():
             return (
-                jsonify({
-                    "status": "ERROR",
-                    "message": "USER DOES NOT EXIST",
-                    "ERROR": "no_such_user",
-                }),
+                jsonify(
+                    {
+                        "status": "ERROR",
+                        "message": "USER DOES NOT EXIST",
+                        "ERROR": "no_such_user",
+                    }
+                ),
                 401,
             )
 
         @staticmethod
         def internal_error():
             return (
-                jsonify({
-                    "status": "ERROR",
-                    "message": "INTERNAL SERVER ERROR",
-                    "ERROR": "internal_server_error",
-                }),
+                jsonify(
+                    {
+                        "status": "ERROR",
+                        "message": "INTERNAL SERVER ERROR",
+                        "ERROR": "internal_server_error",
+                    }
+                ),
                 500,
             )
 
@@ -99,34 +112,66 @@ class RETURNS:
         @staticmethod
         def return_garment_id(garment_id: str):
             return (
-                jsonify({
-                    "status": "SUCCESS",
-                    "message": "UPLOADED IMAGE SUCCESSFULLY RETURN IMAGE_ID",
-                    "image_id": garment_id,
-                }),
+                jsonify(
+                    {
+                        "status": "SUCCESS",
+                        "message": "UPLOADED IMAGE SUCCESSFULLY RETURN IMAGE_ID",
+                        "image_id": garment_id,
+                    }
+                ),
                 201,
             )
 
         @staticmethod
         def return_jwt_refresh_tokens(jwtString: str, refreshToken: str):
             return (
-                jsonify({
-                    "status": "SUCCESS",
-                    "refreshToken": refreshToken,
-                    "jwt": jwtString,
-                    "message": "RETURNED REFRESHTOKEN, JWT",
-                }),
+                jsonify(
+                    {
+                        "status": "SUCCESS",
+                        "refreshToken": refreshToken,
+                        "jwt": jwtString,
+                        "message": "RETURNED REFRESHTOKEN, JWT",
+                    }
+                ),
                 201,
             )
 
         @staticmethod
         def return_jwt_token(jwtString: str):
             return (
-                jsonify({
-                    "status": "SUCCESS",
-                    "jwt": jwtString,
-                    "message": "RETURNED JWT",
-                }),
+                jsonify(
+                    {
+                        "status": "SUCCESS",
+                        "jwt": jwtString,
+                        "message": "RETURNED JWT",
+                    }
+                ),
+                201,
+            )
+
+        @staticmethod
+        def return_garment_images(images: dict):
+            return (
+                jsonify(
+                    {
+                        "status": "SUCCESS",
+                        "images": images,
+                        "message": "RETURNED IMAGES",
+                    }
+                ),
+                201,
+            )
+
+        @staticmethod
+        def return_chat_message(text: str):
+            return (
+                jsonify(
+                    {
+                        "status": "SUCCESS",
+                        "chatMessage": text,
+                        "message": "RETURNED CHATBOT MESSAGE",
+                    }
+                ),
                 201,
             )
 
@@ -435,13 +480,22 @@ def chat():
         payload = request.get_json()
         conversation = payload["convo"]
         jwtString = payload["jwtString"]
-        userID = payload["userID"]
+
+        jwtPayload = getJWTPayload(jwtString)
+        userID = jwtPayload["sub"]
+
         response = geminiAPI.getConvoResponse(conversation)
 
         print("Return Type:", type(response))
         print("Return:", response)
-        if type(response) != str:
-            getGarments(response, userID)
+        if type(response) is dict:
+            images = getGarments(response, userID)
+            return RETURNS.SUCCESS.return_garment_images(images)
+        elif type(response) is str:
+            return RETURNS.SUCCESS.return_chat_message(response)
+        raise Exception(
+            "WRONGLY FORMATTED RESPONSE: " + str(response),
+        )
     except BaseException as error:
         print(error)
         return RETURNS.ERRORS.internal_error()
@@ -517,11 +571,12 @@ LIMIT 5;
                 image_url = row[0]
                 if image_url not in seen[garment_type]:
                     image = open(image_url, "rb")
-                    b64image = base64.b64encode(image.read()).decode('utf-8')
+                    b64image = base64.b64encode(image.read()).decode("utf-8")
                     image.close()
                     res[garment_type].append(b64image)
                     seen[garment_type].add(image_url)
     return res
+
 
 """WITH filtered AS (
   SELECT id
