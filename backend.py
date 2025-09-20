@@ -479,6 +479,7 @@ def chat():
     try:
         payload = request.get_json()
         conversation = payload["convo"]
+        # {"convo": [{"content": "Hi", "role": "user"}, {"content": "Hmm, I received an unexpected response format.", "role": "model"}, {"content": "H", "role": "user"}]
         jwtString = payload["jwtString"]
 
         jwtPayload = getJWTPayload(jwtString)

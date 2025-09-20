@@ -166,9 +166,7 @@ Output rules:
   - A list of multiple style options (e.g., {{ "top": [ {{...}}, {{...}} ], "jewelry": [{{...}} ] }}).
 
 Schema for each garment JSON:
-{"{"}{
-    JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'
-}
+{"{"}{JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'}
 {"}"}
 
 ALLOWED_TAGS = {ALLOWED_TAGS}
@@ -198,6 +196,7 @@ TYPES_CONVO_PROMPT = types.Part.from_text(text=CONVO_PROMPT)
 
 print(CONVO_PROMPT)
 
+
 def generate_tags(image_bytes: bytes, garment_type: str, image_format: str) -> dict:
     """
     Generates fashion tags for an image using a Gemini model.
@@ -218,7 +217,9 @@ def generate_tags(image_bytes: bytes, garment_type: str, image_format: str) -> d
     # Use an f-string for a much clearer, more structured prompt
     prompt_text = f"""
 You are an expert fashion tagging API.
-Your task is to analyze the provided image of a '{garment_type}' and return a single, valid JSON object.
+Your task is to analyze the provided image of a '{
+        garment_type
+    }' and return a single, valid JSON object.
 
 ## INSTRUCTIONS
 1.  Analyze the image.
@@ -228,9 +229,7 @@ Your task is to analyze the provided image of a '{garment_type}' and return a si
 ## JSON OUTPUT SCHEMA
 ```json
 Schema for each garment JSON:
-{"{"}{
-    JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'
-}
+{"{"}{JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'}
 {"}"}
 
 ## ALLOWED TAGS
@@ -292,9 +291,9 @@ def build(convo):
     contents: list[types.Content] = []
 
     contents.append(types.Content(role="user", parts=[TYPES_CONVO_PROMPT]))
-
+    # {"convo": [{"content": "Hi", "role": "user"}, {"content": "Hmm, I received an unexpected response format.", "role": "model"}, {"content": "H", "role": "user"}]F
     for message in convo:
         role = message["role"]
         content = message["content"]
-        contents.append(types.Content(role=role, parts=[content]))
+        contents.append(types.Content(role=role, parts=[types.Part.from_text(content)]))
     return contents
