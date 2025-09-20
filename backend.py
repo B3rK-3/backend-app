@@ -1,6 +1,6 @@
 # script that processes an uploaded image
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from uuid import uuid4
 import jwt
 import base64
@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import geminiAPI
 import hashlib
 from io import BytesIO
+from collections import defaultdict
 
 load_dotenv()
 
@@ -25,10 +26,111 @@ print(device)
 model, preprocess = clip.load("ViT-B/32", device=device)
 
 
+class RETURNS:
+    class ERRORS:
+        bad_jwt = (
+            jsonify(
+                {
+                    "status": "ERROR",
+                    "ERROR": "expired_jwt",
+                    "message": "JWT EXPIRED",
+                }
+            ),
+            401,
+        )
+        bad_image = (
+            jsonify(
+                {
+                    "status": "ERROR",
+                    "message": "GEMINI RETURNED BAD FEATURES",
+                    "ERROR": "not_clothing",
+                }
+            ),
+            401,
+        )
+        bad_email = (
+            jsonify(
+                {
+                    "status": "ERROR",
+                    "ERROR": "email_exists",
+                    "message": "EMAIL NOT UNIQUE",
+                }
+            ),
+            409,
+        )
+        bad_refresh_token = (
+            jsonify(
+                {
+                    "status": "ERROR",
+                    "ERROR": "invalid_refresh_token",
+                    "message": "INVALID REFRESH TOKEN",
+                }
+            ),
+            401,
+        )
+        bad_login = (
+            jsonify(
+                {
+                    "status": "ERROR",
+                    "message": "USER DOES NOT EXIST",
+                    "ERROR": "no_such_user",
+                }
+            ),
+            401,
+        )
+        internal_error = (
+            jsonify(
+                {
+                    "status": "ERROR",
+                    "message": "INTERNAL SERVER ERROR",
+                    "ERROR": "internal_server_error",
+                }
+            ),
+            500,
+        )
+
+    class SUCCESS:
+        @staticmethod
+        def return_garment_id(garment_id: str):
+            return jsonify(
+                {
+                    "status": "SUCCESS",
+                    "message": "UPLOADED IMAGE SUCCESSFULLY RETURN IMAGE_ID",
+                    "image_id": garment_id,
+                }
+            ), 201
+
+        @staticmethod
+        def return_jwt_refresh_tokens(jwtString: str, refreshToken: str):
+            return jsonify(
+                {
+                    "status": "SUCCESS",
+                    "refreshToken": refreshToken,  # set as HttpOnly cookie in real app
+                    "jwt": jwtString,
+                    "message": "RETURNED REFRESHTOKEN, JWT",
+                }
+            ), 201
+
+        @staticmethod
+        def return_jwt_token(jwtString: str):
+            return jsonify(
+                {
+                    "status": "SUCCESS",
+                    "jwt": jwtString,
+                    "message": "RETURNED JWT",
+                }
+            ), 201
+
+
 def getJWTPayload(jwtString: str) -> dict:
     """get jwt payload"""
-    payload = jwt.decode(jwtString, os.environ.get("JWTSECRET"), algorithms=["HS256"])
-    return payload
+    try:
+        payload = jwt.decode(
+            jwtString, os.environ.get("JWTSECRET"), algorithms=["HS256"]
+        )
+        return payload
+    except jwt.InvalidSignatureError:
+        return None
 
 
 def validJWT(payload: dict) -> bool:
@@ -161,80 +263,82 @@ def clipImage(bytesObj: bytes):
     return embedding
 
 
+def clipText(text: str):
+    with torch.no_grad():
+        textTokens = clip.tokenize(text).to(device)
+        text_embedding = model.encode_text(textTokens)
+        text_embedding /= text_embedding.norm(dim=-1, keepdim=True)
+    return text_embedding.cpu().tolist()[0]
+
+
 @app.route("/pushdb", methods=["POST"])
 def pushdb():
-    payload = request.get_json()
-    jwtString: str = payload["jwt"]
-    img: str = payload["img"]  # base64 string
-    garment_type: str = payload["type"]
+    try:
+        payload = request.get_json()
+        jwtString: str = payload["jwt"]
+        img: str = payload["img"]  # base64 string
+        garment_type: str = payload["type"]
 
-    jwtPayload = getJWTPayload(jwtString)
-    if not validJWT(jwtPayload):
-        return jsonify(
-            {"status": "ERROR", "ERROR": "expired_jwt", "message": "JWT EXPIRED"}
-        ), 401
-    userID = jwtPayload["sub"]
+        jwtPayload = getJWTPayload(jwtString)
+        if not validJWT(jwtPayload):
+            return RETURNS.ERRORS.bad_jwt
+        userID = jwtPayload["sub"]
 
-    conn = get_conn()
-    cursor = conn.cursor()
+        conn = get_conn()
+        cursor = conn.cursor()
 
-    bytesIn = base64.b64decode(img)
-    print("rembg...")
-    bytesOut = handle(bytesIn)  # remove bg
+        bytesIn = base64.b64decode(img)
+        print("rembg...")
+        bytesOut = handle(bytesIn)  # remove bg
 
-    embedding = clipImage(bytesOut)
+        embedding = clipImage(bytesOut)
 
-    features = geminiAPI.generate_tags(
-        bytesIn, garment_type=garment_type, image_format="jpeg"
-    )
-    if not validImageFeature(features):
-        return jsonify(
-            {
-                "status": "ERROR",
-                "message": "GEMINI RETURNED BAD FEATURES",
-                "ERROR": "not_clothing",
-            }
-        ), 401
+        features = geminiAPI.generate_tags(
+            bytesIn, garment_type=garment_type, image_format="jpeg"
+        )
+        if not validImageFeature(features):
+            return RETURNS.ERRORS.bad_image
 
-    cursor.execute(
-        "INSERT INTO garments (user_id,garment_type,image_url,color_primary,material,pattern,tags) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id;",
-        (
-            userID,
-            garment_type,
-            "something",
-            features["color_primary"],
-            features["material"],
-            features["pattern"],
-            features["tags"],
-        ),
-    )
-    garment_id = str(cursor.fetchone()[0])
+        garment_id = str(uuid4())
+        image_path = f"garments/{userID}/{garment_id}.jpg"
+        cursor.execute(
+            "INSERT INTO garments (id,user_id,garment_type,image_url,color_primary,material,pattern,tags) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id;",
+            (
+                garment_id,
+                userID,
+                garment_type,
+                image_path,
+                features["color_primary"],
+                features["material"],
+                features["pattern"],
+                features["tags"],
+            ),
+        )
 
-    f = open(f"garments/{userID}/{garment_id}.jpg", "wb+")
-    f.write(bytesOut)
-    f.close()
+        f = open(image_path, "wb+")
+        f.write(bytesOut)
+        f.close()
 
-    cursor.execute("INSERT INTO garment_embed VALUES (%s, %s)", (garment_id, embedding))
-    conn.commit()
-    conn.close()
-    return jsonify(
-        {
-            "status": "SUCCESS",
-            "message": "UPLOADED IMAGE SUCCESSFULLY RETURN IMAGE_ID",
-            "image_id": garment_id,
-        }
-    ), 201
+        cursor.execute(
+            "INSERT INTO garment_embed VALUES (%s, %s)", (garment_id, embedding)
+        )
+        conn.commit()
+        conn.close()
+        return RETURNS.SUCCESS.return_garment_id(garment_id)
+    except BaseException as error:
+        print(error)
+        return RETURNS.ERRORS.internal_error
 
 
 @app.route("/register", methods=["POST"])
 def register():
-    payload = request.get_json(force=True)
-    email = payload["email"]
-    password = payload["password"]
-    hashedPass = hashStr(password)
-
-    conn = get_conn()
     try:
+        payload = request.get_json(force=True)
+        email = payload["email"]
+        password = payload["password"]
+        hashedPass = hashStr(password)
+
+        conn = get_conn()
         with conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -249,96 +353,157 @@ def register():
             jwtString = newJWT(userID)
         os.makedirs(f"garments/{userID}")
         conn.commit()
-        return jsonify(
-            {
-                "status": "SUCCESS",
-                "refreshToken": refreshToken,  # set as HttpOnly cookie in real app
-                "jwt": jwtString,
-                "message": "RETURNED REFRESHTOKEN, JWT",
-            }
-        ), 201
-
-    except psycopg2.errors.UniqueViolation:
-        conn.rollback()
-        return jsonify(
-            {"status": "ERROR", "ERROR": "email_exists", "message": "EMAIL NOT UNIQUE"}
-        ), 409
-
-    finally:
         conn.close()
+        return RETURNS.SUCCESS.return_jwt_refresh_tokens(jwtString, refreshToken)
+    except psycopg2.errors.UniqueViolation as error:
+        print(error)
+        conn.rollback()
+        return RETURNS.ERRORS.bad_email
+    except BaseException as error:
+        print(error)
+        return RETURNS.ERRORS.internal_error
 
 
 @app.route("/updatejwt", methods=["POST"])
 def updateJWT():
-    payload = request.get_json()
-    jwtString = payload["jwt"]
-    refreshToken = payload["refreshToken"]
+    try:
+        payload = request.get_json()
+        jwtString = payload["jwt"]
+        refreshToken = payload["refreshToken"]
 
-    conn = get_conn()
-    cursor = conn.cursor()
+        conn = get_conn()
+        cursor = conn.cursor()
 
-    jwtPayload = getJWTPayload(jwtString)
-    userID = jwtPayload["sub"]
+        jwtPayload = getJWTPayload(jwtString)
+        userID = jwtPayload["sub"]
 
-    validRefreshToken = isValidRefreshToken(userID, refreshToken, cursor)
-    if not validRefreshToken:
-        return jsonify(
-            {
-                "status": "ERROR",
-                "ERROR": "invalid_refresh_token",
-                "message": "INVALID REFRESH TOKEN",
-            }
-        ), 401
+        if not isValidRefreshToken(userID, refreshToken, cursor):
+            return RETURNS.ERRORS.bad_refresh_token
 
-    newJwtString = newJWT(userID)
-    conn.close()
-    return jsonify(
-        {
-            "status": "SUCCESS",
-            "jwt": newJwtString,
-            "message": "RETURNED JWT",
-        }
-    ), 201
+        newJwtString = newJWT(userID)
+        conn.close()
+        return RETURNS.SUCCESS.return_jwt_token(newJwtString)
+    except BaseException as error:
+        print(error)
+        return RETURNS.ERRORS.internal_error
 
 
 # refreshes the reshreshToken
 @app.route("/login", methods=["POST"])
 def login():
-    payload = request.get_json()
-    password = payload["password"]
-    email = payload["email"]
+    try:
+        payload = request.get_json()
+        password = payload["password"]
+        email = payload["email"]
 
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        hashedPass = hashStr(password)
+        cursor.execute(
+            "SELECT id FROM users WHERE email = %s AND hashed_pass = %s",
+            (email, hashedPass),
+        )
+        user = cursor.fetchone()
+        if not user:
+            return RETURNS.ERRORS.bad_login
+
+        userID = user[0]
+        refreshToken = getUpdateRefreshToken(userID, cursor)
+        jwtString = newJWT(userID)
+        conn.commit()
+        conn.close()
+        return RETURNS.SUCCESS.return_jwt_refresh_tokens(jwtString, refreshToken)
+    except BaseException as error:
+        print(error)
+        return RETURNS.ERRORS.internal_error
+
+
+# gemini chat for outfit
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        payload = request.get_json()
+        conversation = payload["convo"]
+        jwtString = payload["jwtString"]
+        userID = payload["userID"]
+        response = geminiAPI.getConvoResponse(conversation)
+
+        print("Return Type:", type(response))
+        print("Return:", response)
+        if type(response) != str:
+            getGarments(response, userID)
+    except BaseException as error:
+        print(error)
+        return RETURNS.ERRORS.internal_error
+
+
+def getGarments(jsonObj: dict, userID: str):
+    """
+    Parses the database and return images for the given garments
+    """
     conn = get_conn()
     cursor = conn.cursor()
 
-    hashedPass = hashStr(password)
-    cursor.execute(
-        "SELECT id FROM users WHERE email = %s AND hashed_pass = %s",
-        (email, hashedPass),
-    )
-    user = cursor.fetchone()
-    if not user:
-        return jsonify(
-            {
-                "status": "ERROR",
-                "message": "USER DOES NOT EXIST",
-                "ERROR": "no_such_user",
-            }
-        ), 401
+    res = defaultdict(set)
 
-    userID = user[0]
-    refreshToken = getUpdateRefreshToken(userID, cursor)
-    jwtString = newJWT(userID)
-    conn.commit()
-    conn.close()
-    return jsonify(
-        {
-            "status": "SUCCESS",
-            "refreshToken": refreshToken,
-            "jwt": jwtString,
-            "message": "RETURNED REFRESHTOKEN AND JWTTOKEN",
-        }
-    ), 201
+    for garment_type in jsonObj.keys():
+        for option in jsonObj[garment_type]:
+            """
+            option: {
+    "garment_type": "string",
+    "color_primary": "string",
+    "material": "string",
+    "pattern": "string",
+    "tags": ["string"],
+    "image_description": "string"
+    }
+            """
+            garment_type = option["garment_type"]
+            textEmbed = clipText(option["image_description"])
+            color_primary = option["color_primary"]
+            material = option["material"]
+            pattern = option["pattern"]
+            tags = option["tags"]
+            params = {
+                "user_id": userID,  # UUID
+                "garment_type": garment_type,
+                "tags": tags,  # list[str]
+                "color_primary": color_primary,  # str
+                "text_embed": textEmbed,  # length-512 vector (list/np.array)
+            }
+            cursor.execute(
+                """
+WITH prefilter AS (
+  SELECT
+    g.id,
+    g.image_url,
+    g.color_primary,
+    g.created_at,
+    /* count how many query tags appear in the row's tags */
+    (SELECT count(*) FROM unnest(g.tags) t WHERE t = ANY(%(tags)s)) AS tag_hits,
+    /* 1 if color matches, else 0 */
+    (g.color_primary = %(color_primary)s)::int AS color_match
+  FROM garments g
+  WHERE g.user_id = %(user_id)s
+    AND g.garment_type = %(garment_type)s
+),
+top20 AS (
+  SELECT *
+  FROM prefilter
+  ORDER BY tag_hits DESC, color_match DESC, created_at DESC
+  LIMIT 20
+)
+SELECT t.image_url
+FROM top20 t
+JOIN garment_embed e ON e.id = t.id
+ORDER BY e.embed <-> %(text_embed)s
+LIMIT 5;
+""",
+                params,
+            )
+            res[garment_type].update(set(cursor.fetchall()))
+    return res
 
 
 """WITH filtered AS (
