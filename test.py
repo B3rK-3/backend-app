@@ -41,14 +41,17 @@ def get_conn():
     )
 
 
+
 def getGarments(jsonObj: dict, userID: str):
     """
     Parses the database and return images for the given garments
     """
     conn = get_conn()
+    register_vector(conn)
     cursor = conn.cursor()
 
-    res = defaultdict(set)
+    seen = defaultdict(set)
+    res = defaultdict(list)
 
     for garment_type in jsonObj.keys():
         for option in jsonObj[garment_type]:
@@ -105,9 +108,13 @@ LIMIT 5;
 """,
                 params,
             )
-            res[garment_type].update(set(cursor.fetchall()))
+            for image_url in cursor.fetchall():
+                if image_url not in seen[garment_type]:
+                    res[garment_type].append(image_url)
+                    seen[garment_type].add(image_url)
     return res
 
+userID = "019968be-a7a8-7b18-8474-a2b39f025031"
 print(
     getGarments(
         {
@@ -157,6 +164,11 @@ print(
                 },
             ],
         },
-        "019964db-ee31-7676-8ba1-0ab63d9c2ceb",
+        userID,
     )
 )
+
+conn = get_conn()
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM garments WHERE user_id = '" + userID + "'")
+print(cursor.fetchall())

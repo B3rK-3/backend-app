@@ -41,6 +41,7 @@ ALLOWED_TAGS = {
         "sporty",
         "graphic",
         "minimal",
+        "hoodie",
     ],
     "bottom": [
         "relaxed",
@@ -132,7 +133,16 @@ ALLOWED_TAGS = {
         "minimal",
     ],
 }
-CONVO_PROMPT = """
+
+JSON_SCHEMA = """
+  "garment_type": "top" | "bottom" | "dress" | "jewelry" | "hat",
+  "color_primary": "<lowercase one word color, e.g. 'black','white','navy','gold'>",
+  "material": "cotton" | "linen" | "denim" | "leather" | "metal" | "wool" | "satin" | "silk">",
+  "pattern": "solid" | "striped" | "plaid" | "floral" | "graphic" | "textured" | "other",
+  "tags": [5..10 strings drawn ONLY from the allowed list for that garment_type],
+"""
+
+CONVO_PROMPT = f"""
 You are a structured fashion planning assistant. 
 You DO NOT analyze images. You ask concise follow-up questions, then generate JSON describing garments.
 
@@ -153,43 +163,16 @@ Your goals:
 Output rules:
 - Output JSON only (no extra text). If you need to ask a question, ask it plainly (no JSON) and WAIT for the answer.
 - When you have enough info, return:
-  - A list of multiple style options (e.g., { "top": [ {...}, {...} ], "jewelry": [ {...} ] }).
+  - A list of multiple style options (e.g., {{ "top": [ {{...}}, {{...}} ], "jewelry": [{{...}} ] }}).
 
 Schema for each garment JSON:
-{
-  "garment_type": "top" | "bottom" | "dress" | "jewelry" | "hat",
-  "color_primary": "<lowercase color, e.g. 'black','white','navy','gold'>",
-  "material": "<lowercase material, e.g. 'cotton','linen','denim','leather','metal','wool','satin','silk'>",
-  "pattern": "solid" | "striped" | "plaid" | "floral" | "graphic" | "textured" | "other",
-  "tags": [5..10 strings drawn ONLY from the allowed list for that garment_type],
-  "image_description": "<max 6-word descriptive phrase>"
+{"{"}{
+    JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'
 }
+{"}"}
 
-ALLOWED_TAGS = {
-  "top": [
-    "oversized","slim","cropped","boxy","fitted","vneck","crewneck","scoop","collared","turtleneck",
-    "short-sleeve","long-sleeve","sleeveless","puff-sleeve","casual","formal","sporty","graphic","minimal"
-  ],
-  "bottom": [
-    "relaxed","skinny","wide-leg","straight","tailored","cargo","joggers","pleated","wrap",
-    "shorts","bermuda","mid-thigh","knee-length","cropped","mini","midi","maxi",
-    "high-waist","low-rise","elastic","drawstring",
-    "denim","chino","athletic","beach","casual","sporty","streetwear","summer"
-  ],
-  "dress": [
-    "a-line","sheath","bodycon","fit-and-flare","wrap",
-    "mini","midi","maxi",
-    "sleeveless","halter","off-shoulder","strapless",
-    "evening","casual","cocktail","boho","elegant","summer","vneck"
-  ],
-  "jewelry": [
-    "necklace","ring","bracelet","earring","minimal","statement","layered","chunky","delicate",
-    "gold","silver","platinum","pearl","gemstone","leather","geometric","floral","heart","star","religious","vintage"
-  ],
-  "hat": [
-    "baseball","beanie","bucket","fedora","snapback","visor","wide-brim","casual","sporty","formal","retro","minimal"
-  ]
-}
+ALLOWED_TAGS = {ALLOWED_TAGS}
+
 
 Hard constraints:
 - Tags MUST be a subset of ALLOWED_TAGS[garment_type].
@@ -213,6 +196,7 @@ Final formatting:
 """
 TYPES_CONVO_PROMPT = types.Part.from_text(text=CONVO_PROMPT)
 
+print(CONVO_PROMPT)
 
 def generate_tags(image_bytes: bytes, garment_type: str, image_format: str) -> dict:
     """
@@ -243,12 +227,11 @@ Your task is to analyze the provided image of a '{garment_type}' and return a si
 
 ## JSON OUTPUT SCHEMA
 ```json
-{{
-  "color_primary": "string",
-  "material": "string",
-  "pattern": "string",
-  "tags": ["string"]
-}}
+Schema for each garment JSON:
+{"{"}{
+    JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'
+}
+{"}"}
 
 ## ALLOWED TAGS
 {json.dumps(allowed_list)}
@@ -297,11 +280,12 @@ def getConvoResponse(convo: list):
         contents=history,
         config=cfg,
     ).text
-    
+
     if response[:7] != "```json":
         return response
     else:
         return json.loads(response[8:-4])
+
 
 def build(convo):
     """Build ai history from convo"""

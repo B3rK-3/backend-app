@@ -1,6 +1,8 @@
 # script that processes an uploaded image
 
 from flask import Flask, request, jsonify
+from pgvector.psycopg2 import register_vector
+from pgvector import Vector
 from uuid import uuid4
 import jwt
 import base64
@@ -450,9 +452,11 @@ def getGarments(jsonObj: dict, userID: str):
     Parses the database and return images for the given garments
     """
     conn = get_conn()
+    register_vector(conn)
     cursor = conn.cursor()
 
-    res = defaultdict(set)
+    seen = defaultdict(set)
+    res = defaultdict(list)
 
     for garment_type in jsonObj.keys():
         for option in jsonObj[garment_type]:
@@ -477,7 +481,7 @@ def getGarments(jsonObj: dict, userID: str):
                 "garment_type": garment_type,
                 "tags": tags,  # list[str]
                 "color_primary": color_primary,  # str
-                "text_embed": textEmbed,  # length-512 vector (list/np.array)
+                "text_embed": Vector(textEmbed),  # length-512 vector (list/np.array)
             }
             cursor.execute(
                 """
@@ -509,9 +513,15 @@ LIMIT 5;
 """,
                 params,
             )
-            res[garment_type].update(set(cursor.fetchall()))
+            for row in cursor.fetchall():
+                image_url = row[0]
+                if image_url not in seen[garment_type]:
+                    image = open(image_url, "rb")
+                    b64image = base64.b64encode(image.read()).decode('utf-8')
+                    image.close()
+                    res[garment_type].append(b64image)
+                    seen[garment_type].add(image_url)
     return res
-
 
 """WITH filtered AS (
   SELECT id
