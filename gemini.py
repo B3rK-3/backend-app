@@ -284,7 +284,7 @@ def build_contents(
 
 def main():
     parser = argparse.ArgumentParser(description="Terminal chat for Gemini via google-genai")
-    parser.add_argument("--model", default="gemma-3-27b-it", help="Model name")
+    parser.add_argument("--model", default="gemma-3-12b-it", help="Model name")
     parser.add_argument("--system", default=None, help="Optional system prompt")
     args = parser.parse_args()
 

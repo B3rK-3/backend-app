@@ -19,7 +19,7 @@ client = genai.Client(api_key=api_key)
 
 # The model name in your code was for a non-existent model.
 # Using a valid Gemini model with vision capabilities.
-MODEL_NAME = "gemini-1.5-flash-latest"
+MODEL_NAME = "gemma-3-12b-it"
 ALLOWED_TAGS = {
     "top": [
         "oversized",
