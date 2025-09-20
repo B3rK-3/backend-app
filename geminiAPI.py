@@ -154,19 +154,22 @@ Inputs available:
 Your goals:
 1) Ask the minimum clarifying questions to confidently produce outputs (occasion, vibe, setting, season, formality).
 2) Generate valid JSON objects for:
-   a) The primary garment (if implied or requested by the user).
-   b) Up to 4 jewelry pieces (each separate JSON) with garment_type one of: "necklace","ring","bracelet","earring".
+    a) The primary garment (if implied or requested by the user).
+    b) Up to 4 jewelry pieces (each separate JSON) with garment_type one of: "necklace","ring","bracelet","earring".
 3) Respect gender constraints:
-   - If gender = "male", do NOT propose dress JSON (unless user explicitly asks for a dress), include top AND bottom.
-   - If gender = "female" or "unspecified", dresses are allowed if context implies them.
+    - If gender = "male", do NOT propose dress JSON (unless user explicitly asks for a dress), include top AND bottom.
+    - If gender = "female" or "unspecified", dresses are allowed if context implies them.
 
 Output rules:
 - Output JSON only (no extra text). If you need to ask a question, ask it plainly (no JSON) and WAIT for the answer.
-- When you have enough info, return:
-  - A list of multiple style options (e.g., {{ "top": [ {{...}}, {{...}} ], "jewelry": [{{...}} ] }}).
+- When you have enough info, your final output **must be a single JSON object** that groups garments by type.
+- The keys of this object are the garment types (e.g., "top", "bottom", "jewelry").
+- The value for each key must be a **list** of garment objects.
 
-Schema for each garment JSON:
-{"{"}{JSON_SCHEMA + '  "image_description": "<max 6-word descriptive phrase>"'}
+Schema for each individual garment JSON:
+{"{"}{
+     JSON_SCHEMA + '   "image_description": "<max 6-word descriptive phrase>"'
+}
 {"}"}
 
 ALLOWED_TAGS = {ALLOWED_TAGS}
@@ -185,13 +188,44 @@ Questioning strategy:
 
 Multiple style options:
 - For vague prompts (e.g., “going on a date”), produce up to 2–3 distinct primary options aligned to gender and setting (e.g., cafe: smart-casual, cozy-minimal).
-- Include jewelry suggestions as separate JSONs.
+- Include jewelry suggestions as separate JSONs, grouped under the "jewelry" key in the final output.
 
 Final formatting:
 - When you’re asking a question, output ONLY the question (no JSON).
-- When you’re delivering results, output ONLY JSON (no prose).
-
-"""
+- When you’re delivering results, output ONLY JSON. The structure must be an object with garment types as keys and lists of garments as values, like this example:
+```json
+{{
+  "top": [
+    {{
+      "garment_type": "top",
+      "color_primary": "white",
+      "material": "cotton",
+      "pattern": "solid",
+      "tags": ["fitted", "crewneck", "short-sleeve", "minimal", "casual"],
+      "image_description": "white fitted crewneck cotton tee"
+    }}
+  ],
+  "bottom": [
+    {{
+      "garment_type": "bottom",
+      "color_primary": "blue",
+      "material": "denim",
+      "pattern": "solid",
+      "tags": ["straight", "high-waist", "denim", "casual", "streetwear"],
+      "image_description": "high-waist straight leg blue jeans"
+    }}
+  ],
+  "jewelry": [
+    {{
+      "garment_type": "jewelry",
+      "color_primary": "gold",
+      "material": "metal",
+      "pattern": "solid",
+      "tags": ["necklace", "delicate", "gold", "minimal", "layered"],
+      "image_description": "delicate layered gold necklace"
+    }}
+  ]
+}}"""
 TYPES_CONVO_PROMPT = types.Part.from_text(text=CONVO_PROMPT)
 
 print(CONVO_PROMPT)

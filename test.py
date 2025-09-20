@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import torch
 import clip
 from collections import defaultdict
+import base64
 
 load_dotenv()
 
@@ -39,6 +40,7 @@ def get_conn():
         host=os.environ["host"],
         port=os.environ["port"],
     )
+
 
 
 
@@ -108,11 +110,16 @@ LIMIT 5;
 """,
                 params,
             )
-            for image_url in cursor.fetchall():
+            for row in cursor.fetchall():
+                image_url = row[0]
                 if image_url not in seen[garment_type]:
+                    # image = open(image_url, "rb")
+                    # b64image = base64.b64encode(image.read()).decode("utf-8")
+                    # image.close()
                     res[garment_type].append(image_url)
                     seen[garment_type].add(image_url)
     return res
+
 
 userID = "01996955-cdbd-7c57-88e5-0af497f8e790"
 print(
