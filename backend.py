@@ -20,7 +20,7 @@ from io import BytesIO
 load_dotenv()
 
 app = Flask(__name__)
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 print(device)
 model, preprocess = clip.load("ViT-B/32", device=device)
 
