@@ -295,5 +295,5 @@ def build(convo):
     for message in convo:
         role = message["role"]
         content = message["content"]
-        contents.append(types.Content(role=role, parts=[types.Part.from_text(content)]))
+        contents.append(types.Content(role=role, parts=[types.Part.from_text(text=content)]))
     return contents
