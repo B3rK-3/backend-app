@@ -309,7 +309,7 @@ def pushdb():
         garment_id = str(uuid4())
         image_path = f"garments/{userID}/{garment_id}.jpg"
         cursor.execute(
-            "INSERT INTO garments (id,user_id,garment_type,image_url,color_primary,material,pattern,tags) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id;",
+            "INSERT INTO garments (id,user_id,garment_type,image_url,color_primary,material,pattern,tags) VALUES (%s,%s,%s,%s,%s,%s,%s, %s) RETURNING id;",
             (
                 garment_id,
                 userID,
