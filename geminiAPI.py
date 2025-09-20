@@ -211,7 +211,7 @@ Final formatting:
 - When you’re delivering results, output ONLY JSON (no prose).
 
 """
-TYPES_CONVO_PROMPT = types.Part.from_text(CONVO_PROMPT)
+TYPES_CONVO_PROMPT = types.Part.from_text(text=CONVO_PROMPT)
 
 
 def generate_tags(image_bytes: bytes, garment_type: str, image_format: str) -> dict:
