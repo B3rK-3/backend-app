@@ -1,6 +1,6 @@
 # script that processes an uploaded image
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify
 from uuid import uuid4
 import jwt
 import base64
@@ -25,101 +25,108 @@ device = "cpu"
 print(device)
 model, preprocess = clip.load("ViT-B/32", device=device)
 
-
 class RETURNS:
     class ERRORS:
-        bad_jwt = (
-            jsonify(
-                {
+        @staticmethod
+        def bad_jwt():
+            return (
+                jsonify({
                     "status": "ERROR",
                     "ERROR": "expired_jwt",
                     "message": "JWT EXPIRED",
-                }
-            ),
-            401,
-        )
-        bad_image = (
-            jsonify(
-                {
+                }),
+                401,
+            )
+
+        @staticmethod
+        def bad_image():
+            return (
+                jsonify({
                     "status": "ERROR",
                     "message": "GEMINI RETURNED BAD FEATURES",
                     "ERROR": "not_clothing",
-                }
-            ),
-            401,
-        )
-        bad_email = (
-            jsonify(
-                {
+                }),
+                401,
+            )
+
+        @staticmethod
+        def bad_email():
+            return (
+                jsonify({
                     "status": "ERROR",
                     "ERROR": "email_exists",
                     "message": "EMAIL NOT UNIQUE",
-                }
-            ),
-            409,
-        )
-        bad_refresh_token = (
-            jsonify(
-                {
+                }),
+                409,
+            )
+
+        @staticmethod
+        def bad_refresh_token():
+            return (
+                jsonify({
                     "status": "ERROR",
                     "ERROR": "invalid_refresh_token",
                     "message": "INVALID REFRESH TOKEN",
-                }
-            ),
-            401,
-        )
-        bad_login = (
-            jsonify(
-                {
+                }),
+                401,
+            )
+
+        @staticmethod
+        def bad_login():
+            return (
+                jsonify({
                     "status": "ERROR",
                     "message": "USER DOES NOT EXIST",
                     "ERROR": "no_such_user",
-                }
-            ),
-            401,
-        )
-        internal_error = (
-            jsonify(
-                {
+                }),
+                401,
+            )
+
+        @staticmethod
+        def internal_error():
+            return (
+                jsonify({
                     "status": "ERROR",
                     "message": "INTERNAL SERVER ERROR",
                     "ERROR": "internal_server_error",
-                }
-            ),
-            500,
-        )
+                }),
+                500,
+            )
 
     class SUCCESS:
         @staticmethod
         def return_garment_id(garment_id: str):
-            return jsonify(
-                {
+            return (
+                jsonify({
                     "status": "SUCCESS",
                     "message": "UPLOADED IMAGE SUCCESSFULLY RETURN IMAGE_ID",
                     "image_id": garment_id,
-                }
-            ), 201
+                }),
+                201,
+            )
 
         @staticmethod
         def return_jwt_refresh_tokens(jwtString: str, refreshToken: str):
-            return jsonify(
-                {
+            return (
+                jsonify({
                     "status": "SUCCESS",
-                    "refreshToken": refreshToken,  # set as HttpOnly cookie in real app
+                    "refreshToken": refreshToken,
                     "jwt": jwtString,
                     "message": "RETURNED REFRESHTOKEN, JWT",
-                }
-            ), 201
+                }),
+                201,
+            )
 
         @staticmethod
         def return_jwt_token(jwtString: str):
-            return jsonify(
-                {
+            return (
+                jsonify({
                     "status": "SUCCESS",
                     "jwt": jwtString,
                     "message": "RETURNED JWT",
-                }
-            ), 201
+                }),
+                201,
+            )
 
 
 def getJWTPayload(jwtString: str) -> dict:
@@ -297,7 +304,7 @@ def pushdb():
             bytesIn, garment_type=garment_type, image_format="jpeg"
         )
         if not validImageFeature(features):
-            return RETURNS.ERRORS.bad_image
+            return RETURNS.ERRORS.bad_image()
 
         garment_id = str(uuid4())
         image_path = f"garments/{userID}/{garment_id}.jpg"
@@ -327,7 +334,7 @@ def pushdb():
         return RETURNS.SUCCESS.return_garment_id(garment_id)
     except BaseException as error:
         print(error)
-        return RETURNS.ERRORS.internal_error
+        return RETURNS.ERRORS.internal_error()
 
 
 @app.route("/register", methods=["POST"])
@@ -358,10 +365,10 @@ def register():
     except psycopg2.errors.UniqueViolation as error:
         print(error)
         conn.rollback()
-        return RETURNS.ERRORS.bad_email
+        return RETURNS.ERRORS.bad_email()
     except BaseException as error:
         print(error)
-        return RETURNS.ERRORS.internal_error
+        return RETURNS.ERRORS.internal_error()
 
 
 @app.route("/updatejwt", methods=["POST"])
@@ -378,14 +385,14 @@ def updateJWT():
         userID = jwtPayload["sub"]
 
         if not isValidRefreshToken(userID, refreshToken, cursor):
-            return RETURNS.ERRORS.bad_refresh_token
+            return RETURNS.ERRORS.bad_refresh_token()
 
         newJwtString = newJWT(userID)
         conn.close()
         return RETURNS.SUCCESS.return_jwt_token(newJwtString)
     except BaseException as error:
         print(error)
-        return RETURNS.ERRORS.internal_error
+        return RETURNS.ERRORS.internal_error()
 
 
 # refreshes the reshreshToken
@@ -406,7 +413,7 @@ def login():
         )
         user = cursor.fetchone()
         if not user:
-            return RETURNS.ERRORS.bad_login
+            return RETURNS.ERRORS.bad_login()
 
         userID = user[0]
         refreshToken = getUpdateRefreshToken(userID, cursor)
@@ -416,7 +423,7 @@ def login():
         return RETURNS.SUCCESS.return_jwt_refresh_tokens(jwtString, refreshToken)
     except BaseException as error:
         print(error)
-        return RETURNS.ERRORS.internal_error
+        return RETURNS.ERRORS.internal_error()
 
 
 # gemini chat for outfit
@@ -435,7 +442,7 @@ def chat():
             getGarments(response, userID)
     except BaseException as error:
         print(error)
-        return RETURNS.ERRORS.internal_error
+        return RETURNS.ERRORS.internal_error()
 
 
 def getGarments(jsonObj: dict, userID: str):
