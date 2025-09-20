@@ -182,7 +182,6 @@ def pushdb():
     print("rembg")
     bytesOut = handle(bytesIn)  # remove bg
 
-    open("req.jpg", "wb").write(bytesOut)
     embedding = clipImage(bytesOut)
 
     features = geminiAPI.generate_tags(
@@ -193,9 +192,9 @@ def pushdb():
             {
                 "status": "ERROR",
                 "message": "GEMINI RETURNED BAD FEATURES",
-                "ERROR": "internal_error",
+                "ERROR": "not_clothing",
             }
-        )
+        ), 401
 
     cursor.execute(
         "INSERT INTO garments (user_id,garment_type,image_url,color_primary,material,pattern,tags) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id;",
@@ -210,6 +209,11 @@ def pushdb():
         ),
     )
     garment_id = str(cursor.fetchone()[0])
+    
+    f = open(f"garments/{garment_id}.jpg", "wb+")
+    f.write(bytesOut)
+    f.close()
+
     cursor.execute("INSERT INTO garment_embed VALUES (%s, %s)", (garment_id, embedding))
     conn.commit()
     conn.close()

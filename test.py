@@ -13,5 +13,5 @@ conn =  psycopg2.connect(
     )
 
 cursor = conn.cursor()
-cursor.execute("SELECT * FROM users")
+cursor.execute("SELECT * FROM garments")
 print(cursor.fetchall())
