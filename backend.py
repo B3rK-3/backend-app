@@ -179,7 +179,7 @@ def pushdb():
     cursor = conn.cursor()
 
     bytesIn = base64.b64decode(img)
-    print("rembg")
+    print("rembg...")
     bytesOut = handle(bytesIn)  # remove bg
 
     embedding = clipImage(bytesOut)
@@ -209,8 +209,8 @@ def pushdb():
         ),
     )
     garment_id = str(cursor.fetchone()[0])
-    
-    f = open(f"garments/{garment_id}.jpg", "wb+")
+
+    f = open(f"garments/{userID}/{garment_id}.jpg", "wb+")
     f.write(bytesOut)
     f.close()
 
@@ -247,7 +247,7 @@ def register():
             refreshToken = getUpdateRefreshToken(userID, cursor)
             # short-lived access JWT
             jwtString = newJWT(userID)
-
+        os.makedirs(f"garments/{userID}")
         conn.commit()
         return jsonify(
             {
