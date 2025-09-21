@@ -125,51 +125,17 @@ userID = "01996955-cdbd-7c57-88e5-0af497f8e790"
 print(
     getGarments(
         {
-            "top": [
-                {
-                    "garment_type": "top",
-                    "color_primary": "white",
-                    "material": "cotton",
-                    "pattern": "solid",
-                    "tags": [
-                        "collared",
-                        "long-sleeve",
-                        "slim",
-                        "fitted",
-                        "casual",
-                        "minimal",
-                    ],
-                    "image_description": "slim white cotton shirt",
-                }
-            ],
+            
             "bottom": [
                 {
                     "garment_type": "bottom",
-                    "color_primary": "navy",
+                    "color_primary": "beige",
                     "material": "wool",
                     "pattern": "solid",
-                    "tags": ["tailored", "casual"],
-                    "image_description": "navy wool trousers",
+                    "tags": ["tailored", "straight", "high-waist", "formal", "classic"],
+                    "image_description": "trousers for old money style",
                 }
-            ],
-            "jewelry": [
-                {
-                    "garment_type": "jewelry",
-                    "color_primary": "gold",
-                    "material": "metal",
-                    "pattern": "solid",
-                    "tags": ["ring", "minimal", "gold"],
-                    "image_description": "gold minimal ring",
-                },
-                {
-                    "garment_type": "jewelry",
-                    "color_primary": "gold",
-                    "material": "metal",
-                    "pattern": "solid",
-                    "tags": ["bracelet", "minimal", "gold"],
-                    "image_description": "gold minimal bracelet",
-                },
-            ],
+            ]
         },
         userID,
     )
@@ -177,5 +143,14 @@ print(
 
 conn = get_conn()
 cursor = conn.cursor()
-cursor.execute("SELECT * FROM garments WHERE user_id = '" + userID + "'")
+cursor.execute("""SELECT
+  column_name,
+  data_type,
+  character_maximum_length,
+  is_nullable,
+  column_default
+FROM
+  information_schema.columns
+WHERE
+  table_name = 'garment_embed';""")
 print(cursor.fetchall())

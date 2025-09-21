@@ -228,7 +228,6 @@ Final formatting:
 }}"""
 TYPES_CONVO_PROMPT = types.Part.from_text(text=CONVO_PROMPT)
 
-print(CONVO_PROMPT)
 
 
 def generate_tags(image_bytes: bytes, garment_type: str, image_format: str) -> dict:

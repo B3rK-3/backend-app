@@ -204,3 +204,37 @@ Experimental conversation → garment results.
 * JWT expires in **24 hours**
 * Refresh token expires in **90 days**
 
+---
+
+## Schema
+
+## Database Schema
+
+### Users Table
+
+| Column       | Data Type         | Max Length | Nullable | Default              |
+| ------------ | ----------------- | ---------- | -------- | -------------------- |
+| id           | uuid              | -          | NO       | uuid\_generate\_v7() |
+| email        | character varying | 255        | NO       | -                    |
+| hashed\_pass | text              | -          | NO       | -                    |
+
+### Garments Table
+
+| Column         | Data Type         | Max Length | Nullable | Default              |
+| -------------- | ----------------- | ---------- | -------- | -------------------- |
+| id             | uuid              | -          | NO       | uuid\_generate\_v7() |
+| user\_id       | uuid              | -          | NO       | -                    |
+| garment\_type  | text              | -          | YES      | -                    |
+| image\_url     | text              | -          | NO       | -                    |
+| color\_primary | text              | -          | YES      | -                    |
+| material       | text              | -          | YES      | -                    |
+| pattern        | text              | -          | YES      | -                    |
+| created\_at    | timestamp with tz | -          | YES      | now()                |
+| tags           | ARRAY             | -          | YES      | -                    |
+
+### Garment\_Embed Table
+
+| Column | Data Type    | Max Length | Nullable | Default |
+| ------ | ------------ | ---------- | -------- | ------- |
+| id     | uuid         | -          | NO       | -       |
+| embed  | USER-DEFINED | -          | NO       | -       |
